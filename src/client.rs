@@ -3,7 +3,7 @@ use reqwest::{Client, Url};
 
 use crate::{
     errors::MvgError,
-    models::{Departure, Station, TransportType, ZdmStation},
+    models::{Departure, Line, Station, TransportType, ZdmStation},
 };
 
 pub struct MvgClient {
@@ -119,5 +119,31 @@ impl MvgClient {
 
         let stations: Vec<ZdmStation> = response.json().await?;
         Ok(stations)
+    }
+
+    /// Retrieve a list of all lines from the ZDM API
+    pub async fn get_lines(&self) -> Result<Vec<Line>, MvgError> {
+        let url = self.zdm_base.join("lines").unwrap();
+        let resp = self.client.get(url).send().await?;
+
+        if !resp.status().is_success() {
+            return Err(MvgError::NotFound);
+        }
+
+        let lines: Vec<Line> = resp.json().await?;
+        Ok(lines)
+    }
+
+    /// Retrieve a list of all station global IDs
+    pub async fn get_station_global_ids(&self) -> Result<Vec<String>, MvgError> {
+        let url = self.zdm_base.join("mvgStationGlobalIds").unwrap();
+        let resp = self.client.get(url).send().await?;
+
+        if !resp.status().is_success() {
+            return Err(MvgError::NotFound);
+        }
+
+        let ids: Vec<String> = resp.json().await?;
+        Ok(ids)
     }
 }

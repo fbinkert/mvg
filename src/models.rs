@@ -43,10 +43,14 @@ impl TransportType {
 pub struct Station {
     #[serde(alias = "globalId")]
     pub id: String,
-    pub name: String,
-    pub place: String,
+    pub abbreviation: Option<String>,
+    pub diva_id: Option<u32>,
     pub latitude: f64,
     pub longitude: f64,
+    pub name: String,
+    pub place: String,
+    pub products: Option<Vec<String>>,
+    pub tariff_zones: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -72,4 +76,12 @@ pub struct Departure {
     pub transport_type: TransportType,
     pub cancelled: bool,
     pub messages: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Line {
+    pub line_number: Option<i32>,
+    pub name: Option<String>,
+    pub product: Option<String>,
 }

@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use regex::Regex;
 use reqwest::{Client, Url};
 
@@ -36,7 +38,8 @@ impl MvgClient {
     }
 
     pub fn is_valid_station_id(id: &str) -> bool {
-        let re = Regex::new(r"de:[0-9]{2,5}:[0-9]+").unwrap();
+        static RE: OnceLock<Regex> = OnceLock::new();
+        let re = RE.get_or_init(|| Regex::new(r"de:[0-9]{2,5}:[0-9]+").unwrap());
         re.is_match(id)
     }
 

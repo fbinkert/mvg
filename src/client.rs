@@ -37,36 +37,40 @@ impl MvgClient {
         }
     }
 
-    pub fn is_valid_station_id(id: &str) -> bool {
+    fn is_valid_station_id(id: &str) -> bool {
         static RE: OnceLock<Regex> = OnceLock::new();
         let re = RE.get_or_init(|| Regex::new(r"de:[0-9]{2,5}:[0-9]+").unwrap());
         re.is_match(id)
     }
 
-    /// Find a station by name/query or global ID
-    pub async fn get_station(&self, query: &str) -> Result<Option<Station>, MvgError> {
-        if Self::is_valid_station_id(query) {
-            // --- CASE A: ZDM Single Station ---
-            // Endpoint: /.rest/zdm/stations/{id} -> Returns a MAP {}
-            let url = self.zdm_base.join(&format!("stations/{}", query)).unwrap();
-            let resp = self.client.get(url).send().await?;
-
-            if resp.status().is_success() {
-                let station: Station = resp.json().await?; // Expects a Map
-                return Ok(Some(station));
-            }
-            return Ok(None);
+    /// Find a station by global ID
+    pub async fn get_station_by_id(&self, id: &str) -> Result<Station, MvgError> {
+        if !Self::is_valid_station_id(id) {
+            return Err(MvgError::InvalidStationId);
         }
+        let url = self.zdm_base.join(&format!("stations/{}", id)).unwrap();
+        let resp = self.client.get(url).send().await?;
+        if resp.status().is_success() {
+            let station: Station = resp.json().await?;
+            return Ok(station);
+        }
+        Err(MvgError::NotFound)
+    }
 
-        // --- CASE B: FIB Location Search ---
-        // Endpoint: /api/bgw-pt/v3/locations?query=... -> Returns a SEQUENCE [...]
+    /// Find stations by name
+    pub async fn get_stations_by_name(&self, name: &str) -> Result<Vec<Station>, MvgError> {
         let mut url = self.fib_base.join("locations").unwrap();
         url.query_pairs_mut()
-            .append_pair("query", query)
+            .append_pair("query", name)
             .append_pair("locationTypes", "STATION");
+        let resp = self.client.get(url).send().await?.error_for_status()?;
+        let stations: Vec<Station> = resp.json().await?;
+        Ok(stations)
+    }
 
-        let resp = self.client.get(url).send().await?;
-        let stations: Vec<Station> = resp.json().await?; // Expects a Sequence
+    /// Find a station by name. The first match is returned.
+    pub async fn get_station_by_name(&self, name: &str) -> Result<Option<Station>, MvgError> {
+        let stations = self.get_stations_by_name(name).await?;
         Ok(stations.into_iter().next())
     }
 
@@ -99,7 +103,14 @@ impl MvgClient {
             }
         }
 
-        let departures: Vec<Departure> = self.client.get(url).send().await?.json().await?;
+        let departures: Vec<Departure> = self
+            .client
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
         Ok(departures)
     }
 
@@ -117,14 +128,7 @@ impl MvgClient {
     /// Retrieves the full list of all stations from the ZDM master database.
     pub async fn list_stations(&self) -> Result<Vec<ZdmStation>, MvgError> {
         let url = self.zdm_base.join("stations").unwrap();
-
-        let response = self.client.get(url).send().await?;
-
-        println!("{:?}", response);
-        if !response.status().is_success() {
-            return Err(MvgError::NotFound); // Or a specific status error
-        }
-
+        let response = self.client.get(url).send().await?.error_for_status()?;
         let stations: Vec<ZdmStation> = response.json().await?;
         Ok(stations)
     }
@@ -132,12 +136,7 @@ impl MvgClient {
     /// Retrieve a list of all lines from the ZDM API
     pub async fn get_lines(&self) -> Result<Vec<Line>, MvgError> {
         let url = self.zdm_base.join("lines").unwrap();
-        let resp = self.client.get(url).send().await?;
-
-        if !resp.status().is_success() {
-            return Err(MvgError::NotFound);
-        }
-
+        let resp = self.client.get(url).send().await?.error_for_status()?;
         let lines: Vec<Line> = resp.json().await?;
         Ok(lines)
     }
@@ -145,12 +144,7 @@ impl MvgClient {
     /// Retrieve a list of all station global IDs
     pub async fn get_station_global_ids(&self) -> Result<Vec<String>, MvgError> {
         let url = self.zdm_base.join("mvgStationGlobalIds").unwrap();
-        let resp = self.client.get(url).send().await?;
-
-        if !resp.status().is_success() {
-            return Err(MvgError::NotFound);
-        }
-
+        let resp = self.client.get(url).send().await?.error_for_status()?;
         let ids: Vec<String> = resp.json().await?;
         Ok(ids)
     }

@@ -22,7 +22,7 @@ async fn test_live_list_stations() {
 async fn test_live_get_station_by_query() {
     let client = MvgClient::new();
     // Search for "Odeonsplatz"
-    let result = client.get_station("Odeonsplatz").await.unwrap();
+    let result = client.get_station_by_name("Odeonsplatz").await.unwrap();
 
     assert!(result.is_some());
     let station = result.unwrap();
@@ -35,10 +35,7 @@ async fn test_live_get_station_by_query() {
 async fn test_live_get_station_by_id() {
     let client = MvgClient::new();
     // "de:09162:2" is Marienplatz
-    let result = client.get_station("de:09162:2").await.unwrap();
-
-    assert!(result.is_some());
-    let station = result.unwrap();
+    let station = client.get_station_by_id("de:09162:2").await.unwrap();
     assert_eq!(station.id, "de:09162:2");
     assert!(station.name.contains("Marienplatz"));
 }

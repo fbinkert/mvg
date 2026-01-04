@@ -16,19 +16,20 @@ const MVG_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
 const MVG_ZDM_BASE: &str = "https://www.mvg.de/.rest/zdm/";
 const MVG_FIB_BASE: &str = "https://www.mvg.de/api/bgw-pt/v3/";
 
+impl Default for MvgClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MvgClient {
     pub fn new() -> Self {
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(
-            reqwest::header::USER_AGENT,
-            reqwest::header::HeaderValue::from_static(MVG_USER_AGENT),
-        );
-
+        let client = Client::builder()
+            .user_agent(MVG_USER_AGENT)
+            .build()
+            .unwrap();
         Self {
-            client: reqwest::Client::builder()
-                .default_headers(headers)
-                .build()
-                .unwrap(),
+            client,
             fib_base: Url::parse(MVG_FIB_BASE).unwrap(),
             zdm_base: Url::parse(MVG_ZDM_BASE).unwrap(),
         }

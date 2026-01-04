@@ -1,55 +1,91 @@
-# MVG Client for Rust
 
-A robust, asynchronous, and unofficial Rust client for the Munich Transport Corporation (MVG) APIs. This library provides easy access to public transport data in Munich, including station searches, real-time departures, and line information.
+# MVG CLI
+
+A terminal client for the Munich Public Transport system (MVG). Check departures, manage favorites, and filter by direction.
 
 ## Features
 
-* **Station Search:** Find stations by name (`Marienplatz`) or global ID (`de:09162:100`).
-* **Real-time Departures:** Get upcoming departures with delay info, filtering by transport type (U-Bahn, Bus, Tram, etc.).
-* **Geo-Location:** Find stations nearby specific GPS coordinates.
-* **Master Data:** Retrieve full lists of stations and lines from the ZDM (Central Data Management) backend.
-* **Async/Await:** Built on `reqwest` and `tokio` for non-blocking I/O.
+* **Departures Lookup:** Quickly check departures for any station.
+* **Dashboard:** A `monitor` command to show all your favorite connections at a glance.
+* **Direction Filtering:** Filter favorites to only show trains going in a specific direction (e.g., only show U-Bahn heading towards "München Freiheit").
+* **Live Data:** Fetches real-time delays and departure times.
 
+## Installation
 
-## Usage Example
+Ensure you have [Rust and Cargo](https://rustup.rs/) installed.
 
-```rust
-use mvg_client::{MvgClient, models::TransportType};
+```bash
+# Clone the repository
+git clone https://github.com/fbinkert/mvg.git
+cd mvg
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = MvgClient::default();
+# Build and run
+cargo run -- --help
 
-    // Search for a station
-    if let Some(station) = client.get_station("Hauptbahnhof").await? {
-        println!("Found: {}", station.name);
-
-        // Get next 5 departures
-        let departures = client.get_departures(&station.id, 5, 0, None).await?;
-        for dep in departures {
-            println!("{} - {} ({} min)", dep.line_label, dep.destination, dep.time_to_departure());
-        }
-    }
-    Ok(())
-}
+# Optional: Install globally
+cargo install --path .
 
 ```
 
-## Disclaimer & Terms of Use
+## Usage
 
-This library is an **unofficial** client. It is not endorsed by or affiliated with Münchner Verkehrsgesellschaft (MVG).
+### 1. Quick Lookup
 
-### MVG Usage Policy
+Check the next 10 departures for a specific station.
 
-The underlying API is provided by MVG. Users of this library must adhere to MVG's usage policy.
+```bash
+mvg departures "Marienplatz" --limit 10
+
+```
+
+### 2. Managing Favorites
+
+Save stations to your local configuration for quick access.
+
+**Add a favorite:**
+
+```bash
+# Basic add
+mvg fav add "Hauptbahnhof" --alias "Hbf"
+
+# Add with direction filter (e.g., only trains going to Garching)
+mvg fav add "Universität" --alias "Uni" --direction "Garching"
+
+```
+
+**List favorites:**
+
+```bash
+mvg fav list
+
+```
+
+**Remove a favorite:**
+
+```bash
+mvg fav remove "Hbf"
+
+```
+
+### 3. The Monitor
+
+View the status of all your saved favorites in one view.
+
+```bash
+mvg monitor
+
+```
+
+## Disclaimer
+
+This tool is an unofficial client. The underlying API is provided by MVG. Users of this tool must adhere to MVG's usage policy.
 **Data Mining is strictly prohibited.**
 
 > **Nutzungsbedingungen (Original German Text):**
-> "Unsere Systeme dienen der direkten Kundeninteraktion. Die Verarbeitung unserer Inhalte oder Daten durch Dritte erfordert unsere ausdrückliche Zustimmung. Für private, nicht-kommerzielle Zwecke, wird eine gemäßigte Nutzung ohne unsere ausdrückliche Zustimmung geduldet. Jegliche Form von Data-Mining stellt keine gemäßigte Nutzung dar. Wir behalten uns vor, die Duldung grundsätzlich oder in Einzelfällen zu widerrufen. Fragen richten Sie bitte gerne an: redaktion@mvg.de"
+> "Unsere Systeme dienen der direkten Kundeninteraktion. Die Verarbeitung unserer Inhalte oder Daten durch Dritte erfordert unsere ausdrückliche Zustimmung. Für private, nicht-kommerzielle Zwecke, wird eine gemäßigte Nutzung ohne unsere ausdrückliche Zustimmung geduldet. Jegliche Form von Data-Mining stellt keine gemäßigte Nutzung dar. Wir behalten uns vor, die Duldung grundsätzlich oder in Einzelfällen zu widerrufen. Fragen richten Sie bitte gerne an: <redaktion@mvg.de>"
 
-By using this library, you agree to limit your request rates ("moderate use") and to use the data solely for private, non-commercial purposes unless you have obtained express consent from MVG.
+By using this tool, you agree to limit your request rates ("moderate use") and to use the data solely for private, non-commercial purposes unless you have obtained express consent from MVG.
 
 ## License
 
 MIT License. See [LICENSE](./LICENSE) for details.
-

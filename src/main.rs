@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fetch_and_print_departures(
                     &client,
                     &fav.station_id,
-                    20,
+                    30,
                     fav.direction_filter.clone(),
                 )
                 .await?;

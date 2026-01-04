@@ -76,6 +76,8 @@ mvg monitor
 
 ```
 
+![CLI output](freeze.png)
+
 ## Disclaimer
 
 This tool is an unofficial client. The underlying API is provided by MVG. Users of this tool must adhere to MVG's usage policy.

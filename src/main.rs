@@ -3,11 +3,12 @@ use std::{
     path::PathBuf,
 };
 
+use ::futures::future;
 use chrono::{DateTime, Local};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
 use directories::ProjectDirs;
-use mvg::client::MvgClient;
+use mvg::{client::MvgClient, errors::MvgError, models::Departure};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -143,26 +144,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Monitor => {
             if config.favorites.is_empty() {
-                println!("No favorites configured.");
-                println!("Try: mvg fav add \"Marienplatz\" --alias \"Center\"");
+                println!("No favorites configured...");
                 return Ok(());
             }
 
             println!("-------- {} --------", "MVG MONITOR".blue().bold());
 
-            for fav in &config.favorites {
+            let tasks: Vec<_> = config
+                .favorites
+                .iter()
+                .map(|fav| get_monitor_data(&client, fav))
+                .collect();
+
+            let results = future::join_all(tasks).await;
+
+            for (i, result) in results.into_iter().enumerate() {
+                let fav = &config.favorites[i];
+
                 println!("\n📍 {} ({})", fav.alias.green().bold(), fav.station_name);
+
                 if let Some(dir) = &fav.direction_filter {
                     println!("   Filter: Only towards '{}'", dir.yellow());
                 }
 
-                fetch_and_print_departures(
-                    &client,
-                    &fav.station_id,
-                    30,
-                    fav.direction_filter.clone(),
-                )
-                .await?;
+                match result {
+                    Ok((_, deps)) => {
+                        if deps.is_empty() {
+                            println!("   No departures found.");
+                        } else {
+                            print_departures(&deps);
+                        }
+                    }
+                    Err(_) => println!("   {}", "Failed to fetch data".red()),
+                }
             }
         }
 
@@ -220,34 +234,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn fetch_and_print_departures(
+async fn get_monitor_data(
     client: &MvgClient,
-    station_id: &str,
-    limit: usize,
-    filter_direction: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let deps = client.get_departures(station_id, limit, 0, None).await?;
+    fav: &Favorite,
+) -> Result<(String, Vec<Departure>), MvgError> {
+    let deps = client.get_departures(&fav.station_id, 30, 0, None).await?;
 
-    let filtered_deps: Vec<_> = deps
+    let filtered_deps: Vec<Departure> = deps
         .into_iter()
-        .filter(|d| {
-            if let Some(filter) = &filter_direction {
-                d.destination
-                    .to_lowercase()
-                    .contains(&filter.to_lowercase())
-            } else {
-                true
-            }
+        .filter(|d| match &fav.direction_filter {
+            Some(filter) => d
+                .destination
+                .to_lowercase()
+                .contains(&filter.to_lowercase()),
+            None => true,
         })
-        .take(3) // Only show top 5 after filtering
+        .take(3)
         .collect();
 
-    if filtered_deps.is_empty() {
-        println!("   No departures found (check filters or time).");
-        return Ok(());
-    }
+    Ok((fav.alias.clone(), filtered_deps))
+}
 
-    for d in filtered_deps {
+fn print_departures(deps: &[Departure]) {
+    for d in deps {
         let time = DateTime::from_timestamp(d.time_ms / 1000, 0)
             .map(|dt| dt.with_timezone(&Local))
             .unwrap_or_default();
@@ -276,5 +285,4 @@ async fn fetch_and_print_departures(
             delay_str                                // Delay
         );
     }
-    Ok(())
 }

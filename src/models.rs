@@ -65,7 +65,7 @@ pub struct Departure {
     #[serde(rename = "plannedDepartureTime")]
     pub planned_ms: i64,
     pub delay_in_minutes: Option<i32>,
-    pub platform: Option<String>,
+    pub platform: Option<i32>,
     pub realtime: bool,
     pub label: String,
     pub destination: String,

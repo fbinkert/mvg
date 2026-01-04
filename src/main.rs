@@ -6,7 +6,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mvg = MvgClient::new();
 
     println!("Searching for 'Universität'...");
-    if let Some(station) = mvg.get_station("Marienplatz").await? {
+    if let Some(station) = mvg.get_station("Mittersendling").await? {
         println!("Found Station: {} ({})", station.name, station.id);
 
         // 2. Get departures

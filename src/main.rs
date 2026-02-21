@@ -35,12 +35,10 @@ impl AppConfig {
 
     pub fn load() -> Self {
         let path = Self::get_config_path();
-        if path.exists()
-            && let Ok(content) = read_to_string(&path)
-            && path.exists()
-            && let Ok(config) = serde_json::from_str::<Self>(&content)
-        {
-            return config;
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(config) = serde_json::from_str::<Self>(&content) {
+                return config;
+            }
         }
         Self::default()
     }
@@ -125,16 +123,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(station) = client.get_station_by_name(&args.station).await? {
                 println!("📍Found Station: {}", station.name.cyan());
 
-                let deps = client.get_departures(&station.id, 5, 0, None).await?;
+                let deps = client
+                    .get_departures(&station.id, args.limit, 0, None)
+                    .await?;
 
                 println!("\nNext Departures:");
                 for d in deps {
-                    let time = DateTime::from_timestamp(d.time_ms / 1000, 0).unwrap_or_default();
+                    let time = DateTime::from_timestamp(d.time_ms / 1000, 0)
+                        .map(|dt| dt.with_timezone(&Local))
+                        .unwrap_or_default();
+
+                    let now = Local::now();
+                    let diff = time.signed_duration_since(now).num_minutes();
+                    let relative = if diff <= 0 {
+                        "now".to_string()
+                    } else {
+                        format!("in {} min", diff)
+                    };
+
                     println!(
-                        "[{}] {:<5} -> {:<20} (Delay: {}m)",
+                        "[{}] {:<5} -> {:<20} ({}, Delay: {}m)",
                         time.format("%H:%M"),
                         d.label,
                         d.destination,
+                        relative,
                         d.delay_in_minutes.unwrap_or(0)
                     );
                 }
